@@ -12,7 +12,8 @@ import (
 
 // Define a struct to represent the response from the IP lookup API.
 type IPInfo struct {
-	Ip string `json:"ip"`
+	Ip  string `json:"ip"`
+	Loc string `json:"loc"`
 }
 
 // Initialize the 'ip' subcommand.
@@ -65,10 +66,13 @@ var ipCmd = &cobra.Command{
 			switch key {
 			case "ip":
 				ipInfo.Ip = value
+			case "loc":
+				ipInfo.Loc = value
 			}
 		}
 
 		// Print the retrieved IP information
 		fmt.Println("IP Address:", ipInfo.Ip)
+		fmt.Println("Country:", ipInfo.Loc)
 	},
 }
