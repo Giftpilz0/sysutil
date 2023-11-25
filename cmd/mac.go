@@ -28,14 +28,6 @@ func init() {
 	macCmd.Flags().StringVarP(&macAddress, "mac", "m", "000000", "Set MAC address to look up")
 }
 
-// Function to shorten the MAC address by removing non-essential characters.
-func shortenMAC(macAddress string) string {
-	if len(macAddress) < 6 {
-		return macAddress
-	}
-	return macAddress[:6]
-}
-
 // Define the 'mac' subcommand.
 var macCmd = &cobra.Command{
 	Use:   "mac",
@@ -45,32 +37,10 @@ var macCmd = &cobra.Command{
 		// Notify the user that the information is being fetched
 		fmt.Println("\nFetching information, please wait...\n____________________")
 
-		// Shorten the MAC address by removing non-essential characters
-		macAddress = shortenMAC(strings.ReplaceAll(macAddress, ":", ""))
-
-		// Construct the API URL for the given MAC address
-		apiURL := "https://api.maclookup.app/v2/macs/" + macAddress
-
-		// Send an HTTP GET request to the API
-		resp, err := http.Get(apiURL)
+		// Get MAC information
+		macInfo, err := getMACInfo(macAddress)
 		if err != nil {
-			log.Fatal("Error fetching the API:", err)
-		}
-		defer resp.Body.Close()
-
-		// Read the entire response body into a byte slice
-		responseBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal("Error reading the API response:", err)
-		}
-
-		// Initialize a MACInfo struct to store the parsed JSON data
-		var macInfo MACInfo
-
-		// Unmarshal the JSON response into the MacInfo struct
-		err = json.Unmarshal(responseBody, &macInfo)
-		if err != nil {
-			log.Fatal("Error parsing JSON:", err)
+			log.Fatal("Error getting MAC information:", err)
 		}
 
 		// Print the retrieved MAC information
@@ -79,4 +49,45 @@ var macCmd = &cobra.Command{
 		fmt.Println("Country:", macInfo.Country)
 		fmt.Println("Address:", macInfo.Address)
 	},
+}
+
+// Function to shorten the MAC address by removing non-essential characters.
+func shortenMAC(macAddress string) string {
+	if len(macAddress) < 6 {
+		return macAddress
+	}
+	return macAddress[:6]
+}
+
+// Function to get MAC information for a given MAC address
+func getMACInfo(macAddress string) (MACInfo, error) {
+	// Shorten the MAC address by removing non-essential characters
+	macAddress = shortenMAC(strings.ReplaceAll(macAddress, ":", ""))
+
+	// Construct the API URL for the given MAC address
+	apiURL := "https://api.maclookup.app/v2/macs/" + macAddress
+
+	// Send an HTTP GET request to the API
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return MACInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	// Read the entire response body into a byte slice
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return MACInfo{}, err
+	}
+
+	// Initialize a MACInfo struct to store the parsed JSON data
+	var macInfo MACInfo
+
+	// Unmarshal the JSON response into the MacInfo struct
+	err = json.Unmarshal(responseBody, &macInfo)
+	if err != nil {
+		return MACInfo{}, err
+	}
+
+	return macInfo, nil
 }
