@@ -3,7 +3,7 @@ module github.com/giftpilz0/sysutil
 go 1.21
 
 require (
-	github.com/gdamore/tcell/v2 v2.7.1
+	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/rivo/tview v0.0.0-20240225120200-5605142ca62e
 	github.com/spf13/cobra v1.8.0
 )
