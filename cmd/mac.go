@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 
@@ -25,7 +26,11 @@ type MACInfo struct {
 // Initialize the 'mac' subcommand and add its flags.
 func init() {
 	rootCmd.AddCommand(macCmd)
-	macCmd.Flags().StringVarP(&macAddress, "mac", "m", "000000", "Set MAC address to look up")
+	defaultMac, err := getDefaultMACAddress()
+	if err != nil {
+		log.Fatalf("Error retrieving system MAC address: %v", err)
+	}
+	macCmd.Flags().StringVarP(&macAddress, "mac", "m", defaultMac, "Set MAC address to look up")
 }
 
 // Define the 'mac' subcommand.
@@ -91,3 +96,21 @@ func getMACInfo(macAddress string) (MACInfo, error) {
 
 	return macInfo, nil
 }
+
+// Function to get the default MAC address of the system.
+func getDefaultMACAddress() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+
+	for _, iface := range interfaces {
+		// Skip loopback interfaces and interfaces without a MAC address.
+		if iface.Flags&net.FlagLoopback == 0 && len(iface.HardwareAddr) > 0 {
+			return iface.HardwareAddr.String(), nil
+		}
+	}
+
+	return "", fmt.Errorf("no valid network interface found")
+}
+
