@@ -113,4 +113,3 @@ func getDefaultMACAddress() (string, error) {
 
 	return "", fmt.Errorf("no valid network interface found")
 }
-
