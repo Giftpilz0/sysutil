@@ -1,19 +1,22 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 // Define a struct to represent the response from the IP lookup API.
 type IPInfo struct {
-	Ip  string `json:"ip"`
-	Loc string `json:"loc"`
+	Ip       string
+	City     string
+	Country  string
+	Timezone string
+	Org      string
 }
 
 // Initialize the 'ip' subcommand.
@@ -27,11 +30,9 @@ var ipCmd = &cobra.Command{
 	Short: "Get information about your public IP address",
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Notify the user that the information is being fetched
-		fmt.Println("\nFetching information, please wait...\n____________________")
 
 		// Define the API URL
-		apiURL := "https://1.1.1.1/cdn-cgi/trace"
+		apiURL := "https://ipinfo.io/json"
 
 		// Send an HTTP GET request to the API
 		resp, err := http.Get(apiURL)
@@ -46,33 +47,17 @@ var ipCmd = &cobra.Command{
 			log.Fatal("Error reading the API response:", err)
 		}
 
-		// Parse the response
-		lines := strings.Split(strings.TrimSpace(string(responseBody)), "\n")
-		data := make(map[string]string)
-
-		for _, line := range lines {
-			parts := strings.Split(line, "=")
-			if len(parts) != 2 {
-				continue
-			}
-
-			data[parts[0]] = parts[1]
-		}
-
-		// Initialize a IPInfo struct to store the data
 		var ipInfo IPInfo
-
-		for key, value := range data {
-			switch key {
-			case "ip":
-				ipInfo.Ip = value
-			case "loc":
-				ipInfo.Loc = value
-			}
+		err = json.Unmarshal(responseBody, &ipInfo)
+		if err != nil {
+			log.Fatal("Error fetching the API:", err)
 		}
 
 		// Print the retrieved IP information
 		fmt.Println("IP Address:", ipInfo.Ip)
-		fmt.Println("Country:", ipInfo.Loc)
+		fmt.Println("City:", ipInfo.City)
+		fmt.Println("Country:", ipInfo.Country)
+		fmt.Println("Provider:", ipInfo.Org)
+		fmt.Println("Timezone:", ipInfo.Timezone)
 	},
 }
