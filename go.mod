@@ -4,6 +4,8 @@ go 1.22
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/godbus/dbus/v5 v5.1.0
+	github.com/gorilla/mux v1.8.1
 	github.com/rivo/tview v0.0.0-20241016194538-c5e4fb24af13
 	github.com/spf13/cobra v1.8.1
 )
