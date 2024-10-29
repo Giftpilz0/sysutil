@@ -124,20 +124,20 @@ func GetWifiSignalStrengthHelper(r *http.Request) int {
 	return signalStrength
 }
 
-// GetIP handles HTTP requests to get the IP address of the device.
+// GetIP handles HTTP requests to get the IP address of the first device.
 // Responds with the IP address as a string.
 func GetIP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", GetIPHelper(r))
+	fmt.Fprintf(w, "%s", GetIPHelper(r)[0])
 }
 
-// GetIPHelper retrieves the IP address of the first network device.
-func GetIPHelper(r *http.Request) string {
-	var ipAddress string
+// GetIPHelper retrieves the IP addresses of all network devices.
+func GetIPHelper(r *http.Request) []string {
+	var ipAddress []string
 	for _, device := range GetNetworkInfo(r) {
 		if device.IpAddress == "" || device.IpAddress == "127.0.0.1" {
 			continue
 		}
-		ipAddress = device.IpAddress
+		ipAddress = append(ipAddress, device.IpAddress)
 	}
 	return ipAddress
 }
