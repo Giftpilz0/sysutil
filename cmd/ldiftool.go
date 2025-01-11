@@ -97,6 +97,7 @@ func writeLdif(ldifFile string, csvData [][]string, attributeName, changeType st
 	if err != nil {
 		return err
 	}
+
 	attributeIndex, err := getColumnIndex(csvData, attributeName)
 	if err != nil {
 		return err
@@ -152,6 +153,7 @@ func getColumnIndex(csvData [][]string, columnName string) (int, error) {
 			return i, nil
 		}
 	}
+
 	return -1, fmt.Errorf("column '%s' not found", columnName)
 }
 
@@ -171,6 +173,7 @@ func readCsv(csvFile *os.File, separator rune) ([][]string, error) {
 // Read LDIF file and return entries as a slice of maps.
 func readLdif(ldifFile *os.File) ([]map[string]string, error) {
 	var ldifEntries []map[string]string
+
 	var currentEntry map[string]string
 
 	scanner := bufio.NewScanner(ldifFile)
@@ -182,12 +185,14 @@ func readLdif(ldifFile *os.File) ([]map[string]string, error) {
 			if currentEntry != nil {
 				ldifEntries = append(ldifEntries, currentEntry)
 			}
+
 			currentEntry = map[string]string{"dn": strings.TrimSpace(line[3:])}
 		} else {
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) == 2 {
 				attr := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
+
 				if existingValue, exists := currentEntry[attr]; exists {
 					currentEntry[attr] = existingValue + "\n" + value
 				} else {
@@ -217,6 +222,7 @@ func writeCsv(csvFile string, ldifEntries []map[string]string, separator rune) e
 	defer writer.Flush()
 
 	var header []string
+
 	for _, entry := range ldifEntries {
 		for key := range entry {
 			if !stringInSlice(key, header) {
@@ -231,15 +237,19 @@ func writeCsv(csvFile string, ldifEntries []map[string]string, separator rune) e
 
 	for _, entry := range ldifEntries {
 		var row []string
+
 		for _, key := range header {
 			value, exists := entry[key]
 			if exists {
 				if strings.Contains(value, "\n") {
 					values := strings.Split(value, "\n")
+
 					var encapsulatedValues []string
+
 					for _, val := range values {
 						encapsulatedValues = append(encapsulatedValues, fmt.Sprintf("[%s]", val))
 					}
+
 					row = append(row, strings.Join(encapsulatedValues, ""))
 				} else {
 					row = append(row, value)
@@ -248,6 +258,7 @@ func writeCsv(csvFile string, ldifEntries []map[string]string, separator rune) e
 				row = append(row, "")
 			}
 		}
+
 		if err := writer.Write(row); err != nil {
 			return fmt.Errorf("could not write CSV row: %w", err)
 		}
@@ -263,5 +274,6 @@ func stringInSlice(str string, slice []string) bool {
 			return true
 		}
 	}
+
 	return false
 }

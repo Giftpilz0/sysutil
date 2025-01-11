@@ -24,6 +24,7 @@ var (
 // Initialize the 'snap' subcommand.
 func init() {
 	snapshotUpdated = true
+
 	rootCmd.AddCommand(snapCmd)
 }
 
@@ -41,6 +42,7 @@ func cycleFocus(elements []tview.Primitive, reverse bool) {
 		}
 
 		app.SetFocus(elements[i])
+
 		return
 	}
 }
@@ -48,13 +50,16 @@ func cycleFocus(elements []tview.Primitive, reverse bool) {
 // Function to retrieve Snapper configurations.
 func getSnapperConfigurations() ([]string, error) {
 	cmd := exec.Command("snapper", "--csvout", "list-configs", "--columns", "config")
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
 	var configurations []string
+
 	configReader := csv.NewReader(strings.NewReader(string(output)))
+
 	records, err := configReader.ReadAll()
 	if err != nil {
 		return nil, err
@@ -64,56 +69,69 @@ func getSnapperConfigurations() ([]string, error) {
 		if row == 0 {
 			continue
 		}
+
 		configurations = append(configurations, data[0])
 	}
+
 	return configurations, nil
 }
 
 // Function to retrieve snapshots for a given configuration.
 func getSnapshotsForConfig(config string) ([][]string, error) {
 	cmd := exec.Command("snapper", "--csvout", "-c", config, "list", "--columns", "config,number,date,description")
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
 	snapshots := csv.NewReader(strings.NewReader(string(output)))
+
 	records, err := snapshots.ReadAll()
 	if err != nil {
 		return nil, err
 	}
+
 	return records, nil
 }
 
 // Function to create a new Snapper snapshot.
 func createSnapshot(config, description string) error {
 	cmd := exec.Command("snapper", "-c", config, "create", "-d", description)
+
 	err := cmd.Run()
 	if err != nil {
 		return err
 	}
+
 	snapshotUpdated = true
+
 	return nil
 }
 
 // Function to delete a Snapper snapshot.
 func deleteSnapshot(config, id string) error {
 	cmd := exec.Command("snapper", "-c", config, "delete", id)
+
 	err := cmd.Run()
 	if err != nil {
 		return err
 	}
+
 	snapshotUpdated = true
+
 	return nil
 }
 
 // Function to revert a Snapper snapshot.
 func revertSnapshot(config, id string) error {
 	cmd := exec.Command("snapper", "-c", config, "undochange", id+"..0")
+
 	err := cmd.Run()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -137,6 +155,7 @@ func updateTableIfNeeded(config string) {
 				// Create the table header with appropriate styling
 				header := []string{"Delete", "Rollback", "Config", "ID", "Timestamp", "Description"}
 				headerColor := tcell.ColorYellow
+
 				for col, title := range header {
 					cell := tview.NewTableCell(title).SetAlign(tview.AlignLeft).SetSelectable(false).SetTextColor(headerColor)
 					table.SetCell(0, col, cell)
@@ -163,19 +182,23 @@ func updateTableIfNeeded(config string) {
 					table.SetCell(row, 5, tview.NewTableCell(description).SetAlign(tview.AlignRight).SetSelectable(false))
 				}
 			})
+
 			snapshotUpdated = false
+
 			table.Select(0, 0).SetDoneFunc(func(key tcell.Key) {
 				if key == tcell.KeyEnter {
 					table.SetSelectable(true, true)
 				}
 			}).SetSelectedFunc(func(row, column int) {
 				table.GetCell(row, column).SetTextColor(tcell.ColorRed)
+
 				if column == 1 {
 					err := revertSnapshot(config, snapshots[row][1])
 					if err != nil {
 						log.Fatal("Error reverting snapshot:", err)
 					}
 				}
+
 				if column == 0 {
 					err := deleteSnapshot(config, snapshots[row][1])
 					if err != nil {
@@ -184,6 +207,7 @@ func updateTableIfNeeded(config string) {
 				}
 			})
 		}
+
 		time.Sleep(time.Second)
 	}
 }
@@ -246,6 +270,7 @@ var snapCmd = &cobra.Command{
 			} else if event.Key() == tcell.KeyPgDn {
 				cycleFocus(inputs, true)
 			}
+
 			return event
 		})
 

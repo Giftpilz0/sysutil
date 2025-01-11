@@ -24,13 +24,12 @@ func init() {
 	wofisshCmd.Flags().StringVarP(&sshCommand, "ssh-command", "s", "ssh", "SSH command to use")
 }
 
-// Define the 'wofissh' subcommand
+// Define the 'wofissh' subcommand.
 var wofisshCmd = &cobra.Command{
 	Use:   "wofissh",
 	Args:  cobra.MaximumNArgs(0),
 	Short: "Launch an SSH connection using wofi",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		// Get hosts from the ssh config file
 		sshConfigFile := os.ExpandEnv("/home/$USER/.ssh/config")
 		hosts, err := getHosts(sshConfigFile)
@@ -52,7 +51,7 @@ var wofisshCmd = &cobra.Command{
 	},
 }
 
-// Function to get a list of all hosts from the ssh config
+// Function to get a list of all hosts from the ssh config.
 func getHosts(sshConfigFile string) ([]string, error) {
 	var hosts []string
 
@@ -75,15 +74,17 @@ func getHosts(sshConfigFile string) ([]string, error) {
 	}
 
 	sort.Strings(hosts)
+
 	return hosts, nil
 }
 
-// Function to run the wofi command with the list of hosts
+// Function to run the wofi command with the list of hosts.
 func showWofi(hosts []string) (string, error) {
 	hostsString := strings.Join(hosts, "\n")
 
 	cmd := exec.Command("wofi", "--prompt", "SSH hosts:", "--dmenu", "--insensitive")
 	cmd.Stdin = strings.NewReader(hostsString)
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -92,8 +93,9 @@ func showWofi(hosts []string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// Function to execute the SSH command in the specified terminal
+// Function to execute the SSH command in the specified terminal.
 func sshToHost(host string, terminal string, sshCommand string) error {
 	err := exec.Command("sh", "-c", fmt.Sprintf("%s '%s %s'", terminal, sshCommand, host)).Run()
+
 	return err
 }

@@ -25,12 +25,14 @@ const NM_DEVICE_TYPE_WIFI = 2
 // GetNetworkInfo retrieves network information for all devices connected to the system.
 // It connects to the system's D-Bus to query the NetworkManager service for device data.
 // Returns a slice of DeviceInfo objects containing data for each detected device.
-func GetNetworkInfo(r *http.Request) []DeviceInfo {
+func GetNetworkInfo() []DeviceInfo {
 	conn, _ := dbus.ConnectSystemBus()
 	defer conn.Close()
+
 	var deviceInfos []DeviceInfo
 
 	var devicePaths []dbus.ObjectPath
+
 	conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager").
 		Call("org.freedesktop.NetworkManager.GetAllDevices", 0).
 		Store(&devicePaths)
@@ -50,11 +52,13 @@ func GetNetworkInfo(r *http.Request) []DeviceInfo {
 
 		// Get IP4 configuration path
 		var ip4ConfigPath dbus.ObjectPath
+
 		conn.Object("org.freedesktop.NetworkManager", devicePath).
 			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device", "Ip4Config").
 			Store(&ip4ConfigPath)
 
 		var addressData []map[string]dbus.Variant
+
 		conn.Object("org.freedesktop.NetworkManager", ip4ConfigPath).
 			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.IP4Config", "AddressData").
 			Store(&addressData)
@@ -68,12 +72,14 @@ func GetNetworkInfo(r *http.Request) []DeviceInfo {
 		// If device type is Wi-Fi, get additional info
 		if deviceInfo.DeviceType == NM_DEVICE_TYPE_WIFI {
 			var activeApPath dbus.ObjectPath
+
 			conn.Object("org.freedesktop.NetworkManager", devicePath).
 				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device.Wireless", "ActiveAccessPoint").
 				Store(&activeApPath)
 
 			// Get the SSID, which is stored as []byte
 			var ssid []byte
+
 			conn.Object("org.freedesktop.NetworkManager", activeApPath).
 				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.AccessPoint", "Ssid").
 				Store(&ssid)
@@ -85,25 +91,29 @@ func GetNetworkInfo(r *http.Request) []DeviceInfo {
 				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.AccessPoint", "Strength").
 				Store(&deviceInfo.WifiStrength)
 		}
+
 		deviceInfos = append(deviceInfos, deviceInfo)
 	}
+
 	return deviceInfos
 }
 
 // GetSSID handles HTTP requests to get the SSID of the connected Wi-Fi network.
 // Responds with the SSID string.
-func GetSSID(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", GetSSIDHelper(r))
+func GetSSID(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprintf(w, "%s", GetSSIDHelper())
 }
 
 // GetSSIDHelper iterates through network devices and returns the SSID of the first Wi-Fi device found.
-func GetSSIDHelper(r *http.Request) string {
+func GetSSIDHelper() string {
 	var ssid string
-	for _, device := range GetNetworkInfo(r) {
+
+	for _, device := range GetNetworkInfo() {
 		if device.WifiSSID != "" {
 			ssid = device.WifiSSID
 		}
 	}
+
 	return ssid
 }
 
@@ -116,11 +126,13 @@ func GetWifiSignalStrength(w http.ResponseWriter, r *http.Request) {
 // GetWifiSignalStrengthHelper retrieves the signal strength of the first Wi-Fi network device found.
 func GetWifiSignalStrengthHelper(r *http.Request) int {
 	var signalStrength int
-	for _, device := range GetNetworkInfo(r) {
+
+	for _, device := range GetNetworkInfo() {
 		if device.WifiStrength != 0 {
 			signalStrength = device.WifiStrength
 		}
 	}
+
 	return signalStrength
 }
 
@@ -133,12 +145,15 @@ func GetIP(w http.ResponseWriter, r *http.Request) {
 // GetIPHelper retrieves the IP addresses of all network devices.
 func GetIPHelper(r *http.Request) []string {
 	var ipAddress []string
-	for _, device := range GetNetworkInfo(r) {
+
+	for _, device := range GetNetworkInfo() {
 		if device.IpAddress == "" || device.IpAddress == "127.0.0.1" {
 			continue
 		}
+
 		ipAddress = append(ipAddress, device.IpAddress)
 	}
+
 	return ipAddress
 }
 
@@ -152,7 +167,9 @@ func ToggleWifi(w http.ResponseWriter, r *http.Request) {
 func ToggleWifiHelper(r *http.Request) bool {
 	conn, _ := dbus.ConnectSystemBus()
 	defer conn.Close()
+
 	var enabled bool
+
 	var enable bool
 
 	conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager").

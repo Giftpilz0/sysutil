@@ -9,6 +9,7 @@ import (
 func isRoot() bool {
 	// Get the effective UID of the current process
 	uid := os.Getuid()
+
 	return uid == 0
 }
 
@@ -19,5 +20,6 @@ func getHomeDirectory() string {
 	if err != nil {
 		log.Fatal("Error getting the user's home directory:", err)
 	}
+
 	return home
 }

@@ -26,10 +26,12 @@ type MACInfo struct {
 // Initialize the 'mac' subcommand and add its flags.
 func init() {
 	rootCmd.AddCommand(macCmd)
+
 	defaultMac, err := getDefaultMACAddress()
 	if err != nil {
 		log.Fatalf("Error retrieving system MAC address: %v", err)
 	}
+
 	macCmd.Flags().StringVarP(&macAddress, "mac", "m", defaultMac, "Set MAC address to look up")
 }
 
@@ -61,10 +63,11 @@ func shortenMAC(macAddress string) string {
 	if len(macAddress) < 6 {
 		return macAddress
 	}
+
 	return macAddress[:6]
 }
 
-// Function to get MAC information for a given MAC address
+// Function to get MAC information for a given MAC address.
 func getMACInfo(macAddress string) (MACInfo, error) {
 	// Shorten the MAC address by removing non-essential characters
 	macAddress = shortenMAC(strings.ReplaceAll(macAddress, ":", ""))

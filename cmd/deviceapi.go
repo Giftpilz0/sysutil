@@ -12,13 +12,14 @@ import (
 // Initialize the 'deviceapi' subcommand.
 func init() {
 	snapshotUpdated = true
+
 	rootCmd.AddCommand(deviceapiCmd)
 }
 
 // Define the 'deviceapi' subcommand.
 var deviceapiCmd = &cobra.Command{
 	Use:   "deviceapi",
-	Short: "Get informations and controll some device functions (volume, network...)",
+	Short: "Get informations and control some device functions (volume, network...)",
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		router := mux.NewRouter()

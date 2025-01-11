@@ -12,15 +12,17 @@ import (
 
 // Volume represents a volume control entity with a device name and a level.
 type Volume struct {
-	Device string // Name of the audio device
-	Level  string // Desired volume level as a string
+	Device string  // Name of the audio device
+	Level  float64 // Desired volume level as a string
 }
 
 // ParseVolumeJSON reads the HTTP request body and unmarshals it into a Volume struct.
 func ParseVolumeJSON(r *http.Request) *Volume {
 	var volume Volume
+
 	responseBody, _ := io.ReadAll(r.Body)
 	json.Unmarshal(responseBody, &volume)
+
 	return &volume
 }
 
@@ -35,11 +37,13 @@ func GetVolumeHelper(r *http.Request) float64 {
 	if volume.Device == "" {
 		volume.Device = "@DEFAULT_SINK@"
 	}
+
 	getVolumeCommand := exec.Command("wpctl", "get-volume", volume.Device)
 	volumeOutput, _ := getVolumeCommand.Output()
 	re := regexp.MustCompile(`Volume:\s([\d.]+)`) // Regex to extract volume level
 	volumeRegex := re.FindStringSubmatch(string(volumeOutput))
 	volumeLevel, _ := strconv.ParseFloat(volumeRegex[1], 64) // Convert extracted string to float
+
 	return volumeLevel
 }
 
@@ -54,17 +58,20 @@ func SetVolumeHelper(r *http.Request) float64 {
 	if volume.Device == "" {
 		volume.Device = "@DEFAULT_SINK@"
 	}
-	setVolumeCommand := exec.Command("wpctl", "set-volume", volume.Device, volume.Level)
+
+	setVolumeCommand := exec.Command("wpctl", "set-volume", volume.Device, fmt.Sprintf("%f", volume.Level))
 	setVolumeCommand.Run()
+
 	return GetVolumeHelper(r)
 }
 
 // ToggleVolumeMute toggles the mute state of the specified audio device.
-func ToggleVolumeMute(w http.ResponseWriter, r *http.Request) {
+func ToggleVolumeMute(_ http.ResponseWriter, r *http.Request) {
 	volume := ParseVolumeJSON(r)
 	if volume.Device == "" {
 		volume.Device = "@DEFAULT_SINK@"
 	}
+
 	toggleVolumeMuteCommand := exec.Command("wpctl", "set-mute", volume.Device, "toggle")
 	toggleVolumeMuteCommand.Run()
 }

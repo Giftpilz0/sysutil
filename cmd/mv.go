@@ -25,6 +25,7 @@ func init() {
 // Function to round a number to a specified precision.
 func round(num float64, precision int) float64 {
 	output := math.Pow(10, float64(precision))
+
 	return float64(int((num*output)+math.Copysign(0.5, (num*output)))) / output
 }
 
@@ -48,8 +49,8 @@ var mvCmd = &cobra.Command{
 		result := make([]int, size)
 
 		// Populate the matrix and vector with values
-		for i := 0; i < size; i++ {
-			for j := 0; j < size; j++ {
+		for i := range size {
+			for j := range size {
 				matrix[i][j] = i*size + j + 1
 			}
 			vector[i] = i + 1
@@ -62,7 +63,7 @@ var mvCmd = &cobra.Command{
 
 		// Start the timer and launch goroutines to perform matrix vector multiplication concurrently
 		startTime = time.Now()
-		for i := 0; i < runs; i++ {
+		for range runs {
 			go func() {
 				defer wg.Done()
 
@@ -70,14 +71,14 @@ var mvCmd = &cobra.Command{
 				localResult := make([]int, size)
 
 				// Perform the matrix vector multiplication
-				for i := 0; i < size; i++ {
-					for j := 0; j < size; j++ {
+				for i := range size {
+					for j := range size {
 						localResult[i] += matrix[i][j] * vector[j]
 					}
 				}
 
 				// Update the global result array using the local result
-				for i := 0; i < size; i++ {
+				for i := range size {
 					result[i] += localResult[i]
 				}
 			}()

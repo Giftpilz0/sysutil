@@ -12,7 +12,7 @@ import (
 
 // Define a struct to represent the response from the IP lookup API.
 type IPInfo struct {
-	Ip       string
+	IP       string
 	City     string
 	Country  string
 	Timezone string
@@ -30,7 +30,6 @@ var ipCmd = &cobra.Command{
 	Short: "Get information about your public IP address",
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-
 		// Define the API URL
 		apiURL := "https://ipinfo.io/json"
 
@@ -54,7 +53,7 @@ var ipCmd = &cobra.Command{
 		}
 
 		// Print the retrieved IP information
-		fmt.Println("IP Address:", ipInfo.Ip)
+		fmt.Println("IP Address:", ipInfo.IP)
 		fmt.Println("City:", ipInfo.City)
 		fmt.Println("Country:", ipInfo.Country)
 		fmt.Println("Provider:", ipInfo.Org)

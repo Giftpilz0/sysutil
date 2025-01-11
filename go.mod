@@ -3,10 +3,10 @@ module github.com/giftpilz0/sysutil
 go 1.22
 
 require (
-	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/gdamore/tcell/v2 v2.8.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gorilla/mux v1.8.1
-	github.com/rivo/tview v0.0.0-20241103174730-c76f7879f592
+	github.com/rivo/tview v0.0.0-20241227133733-17b7edb88c57
 	github.com/spf13/cobra v1.8.1
 )
 
@@ -17,7 +17,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/term v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )
