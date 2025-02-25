@@ -169,7 +169,6 @@ func ToggleWifiHelper(r *http.Request) bool {
 	defer conn.Close()
 
 	var enabled bool
-
 	var enable bool
 
 	conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager").

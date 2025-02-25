@@ -17,33 +17,30 @@ var (
 	sshCommand string
 )
 
-// Initialize the 'wofissh' subcommand.
 func init() {
 	rootCmd.AddCommand(wofisshCmd)
 	wofisshCmd.Flags().StringVarP(&terminal, "terminal", "t", "", "Terminal command to use")
 	wofisshCmd.Flags().StringVarP(&sshCommand, "ssh-command", "s", "ssh", "SSH command to use")
 }
 
-// Define the 'wofissh' subcommand.
 var wofisshCmd = &cobra.Command{
 	Use:   "wofissh",
 	Args:  cobra.MaximumNArgs(0),
 	Short: "Launch an SSH connection using wofi",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get hosts from the ssh config file
+
 		sshConfigFile := os.ExpandEnv("/home/$USER/.ssh/config")
+
 		hosts, err := getHosts(sshConfigFile)
 		if err != nil {
 			log.Fatalf("Error reading SSH config file: %v", err)
 		}
 
-		// Show wofi dialog to select a host
 		selectedHost, err := showWofi(hosts)
 		if err != nil {
 			log.Fatalf("Error displaying wofi: %v", err)
 		}
 
-		// Execute SSH to the selected host in the specified terminal
 		err = sshToHost(selectedHost, terminal, sshCommand)
 		if err != nil {
 			log.Fatalf("Error executing SSH command: %v", err)
@@ -55,14 +52,12 @@ var wofisshCmd = &cobra.Command{
 func getHosts(sshConfigFile string) ([]string, error) {
 	var hosts []string
 
-	// Open the SSH config file
 	sshFile, err := os.Open(sshConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open SSH config file: %w", err)
 	}
 	defer sshFile.Close()
 
-	// Read the file line by line
 	scanner := bufio.NewScanner(sshFile)
 	for scanner.Scan() {
 		line := scanner.Text()

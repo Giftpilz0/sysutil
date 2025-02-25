@@ -12,8 +12,8 @@ import (
 
 // Volume represents a volume control entity with a device name and a level.
 type Volume struct {
-	Device string  // Name of the audio device
-	Level  float64 // Desired volume level as a string
+	Device string
+	Level  float64
 }
 
 // ParseVolumeJSON reads the HTTP request body and unmarshals it into a Volume struct.
@@ -40,9 +40,9 @@ func GetVolumeHelper(r *http.Request) float64 {
 
 	getVolumeCommand := exec.Command("wpctl", "get-volume", volume.Device)
 	volumeOutput, _ := getVolumeCommand.Output()
-	re := regexp.MustCompile(`Volume:\s([\d.]+)`) // Regex to extract volume level
+	re := regexp.MustCompile(`Volume:\s([\d.]+)`)
 	volumeRegex := re.FindStringSubmatch(string(volumeOutput))
-	volumeLevel, _ := strconv.ParseFloat(volumeRegex[1], 64) // Convert extracted string to float
+	volumeLevel, _ := strconv.ParseFloat(volumeRegex[1], 64)
 
 	return volumeLevel
 }

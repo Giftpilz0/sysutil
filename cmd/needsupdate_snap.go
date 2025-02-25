@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/csv"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -21,10 +22,8 @@ var (
 	snapshotUpdated bool               // Flag indicating whether the snapshot table needs updating
 )
 
-// Initialize the 'snap' subcommand.
 func init() {
 	snapshotUpdated = true
-
 	rootCmd.AddCommand(snapCmd)
 }
 
@@ -219,7 +218,7 @@ var snapCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Check if the script is run as root
-		if !isRoot() {
+		if os.Getuid() != 0 {
 			log.Fatal("You need to run this script as root")
 		}
 

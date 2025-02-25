@@ -12,7 +12,6 @@ func Execute() {
 	}
 }
 
-// Define the root command name and add a short description.
 var rootCmd = &cobra.Command{
 	Use:   "sysutil",
 	Short: "sysutil is a collection of utilities to simplify various tasks.",

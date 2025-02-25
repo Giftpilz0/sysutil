@@ -9,32 +9,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Define global variables for command-line arguments.
 var (
 	runs int
 	size int
 )
 
-// Initialize the 'mv' subcommand and add its flags.
 func init() {
 	rootCmd.AddCommand(mvCmd)
 	mvCmd.Flags().IntVarP(&runs, "runs", "r", 1000, "number of times to run the matrix vector multiplication")
 	mvCmd.Flags().IntVarP(&size, "size", "s", 1000, "size of the square matrix")
 }
 
-// Function to round a number to a specified precision.
-func round(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-
-	return float64(int((num*output)+math.Copysign(0.5, (num*output)))) / output
-}
-
-// Define the 'mv' subcommand.
 var mvCmd = &cobra.Command{
 	Use:   "mv",
 	Short: "Calculate Matrix Vector",
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+
 		// Initialize variables for time measurement and performance metrics
 		var startTime, stopTime time.Time
 		var diffTime time.Duration
@@ -104,4 +95,11 @@ var mvCmd = &cobra.Command{
 		fmt.Println("Runs:        ", runs)
 		fmt.Println("MFlops:      ", mflops)
 	},
+}
+
+// Function to round a number to a specified precision.
+func round(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+
+	return float64(int((num*output)+math.Copysign(0.5, (num*output)))) / output
 }

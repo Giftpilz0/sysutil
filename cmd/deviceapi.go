@@ -9,21 +9,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Initialize the 'deviceapi' subcommand.
 func init() {
-	snapshotUpdated = true
-
 	rootCmd.AddCommand(deviceapiCmd)
 }
 
-// Define the 'deviceapi' subcommand.
 var deviceapiCmd = &cobra.Command{
 	Use:   "deviceapi",
 	Short: "Get informations and control some device functions (volume, network...)",
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		router := mux.NewRouter()
 
+		router := mux.NewRouter()
 		router.HandleFunc("/volume", handlers.GetVolume).Methods("GET")
 		router.HandleFunc("/volume", handlers.SetVolume).Methods("POST")
 		router.HandleFunc("/volume/toggle/mute", handlers.ToggleVolumeMute).Methods("GET")
