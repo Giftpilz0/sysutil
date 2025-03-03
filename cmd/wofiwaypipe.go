@@ -16,13 +16,13 @@ var (
 	flagArguments string
 )
 
-type Host struct {
+type HostEntry struct {
 	Arguments   string `yaml:"arguments"`
 	Application string `yaml:"application"`
 }
 
 type HostConfig struct {
-	Hosts map[string]Host `yaml:"hosts"`
+	Hosts map[string][]HostEntry `yaml:"hosts"`
 }
 
 func init() {
@@ -42,34 +42,27 @@ var wofiwaypipeCmd = &cobra.Command{
 			log.Fatalf("Error reading waypipe config file: %v", err)
 		}
 
-		selectedHost, err := waypipeShowWofi(hosts)
+		selectedHost, selectedEntry, err := waypipeShowWofi(hosts)
 		if err != nil {
 			log.Fatalf("Error displaying wofi: %v", err)
 		}
 
-		hostConf, ok := hosts[selectedHost]
-		if !ok {
-			log.Fatalf("Selected host %s doesn't exist in config", selectedHost)
-		}
-
-		// If the flag is provided, override the YAML-based arguments.
-		finalArgs := hostConf.Arguments
+		finalArgs := selectedEntry.Arguments
 		if flagArguments != "" {
 			finalArgs = flagArguments
 		}
 
-		err = waypipeToHost(finalArgs, selectedHost, hostConf.Application)
+		err = callWaypipe(finalArgs, selectedHost, selectedEntry.Application)
 		if err != nil {
 			log.Fatalf("Error executing waypipe command: %v", err)
 		}
 	},
 }
 
-// waypipeGetHosts parses the YAML file into a HostConfig struct and returns the Hosts map.
-func waypipeGetHosts(waypipeConfigFile string) (map[string]Host, error) {
-	file, err := os.Open(waypipeConfigFile)
+func waypipeGetHosts(configPath string) (map[string][]HostEntry, error) {
+	file, err := os.Open(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not open waypipe config file: %w", err)
+		return nil, fmt.Errorf("could not open config file: %w", err)
 	}
 	defer file.Close()
 
@@ -81,38 +74,61 @@ func waypipeGetHosts(waypipeConfigFile string) (map[string]Host, error) {
 	return config.Hosts, nil
 }
 
-// waypipeShowWofi displays the host names via wofi and returns the selected host name.
-func waypipeShowWofi(hosts map[string]Host) (string, error) {
-	var hostNames []string
-	for name := range hosts {
-		hostNames = append(hostNames, name)
+type displayChoice struct {
+	HostName string
+	Entry    HostEntry
+	Display  string
+}
+
+func waypipeShowWofi(hosts map[string][]HostEntry) (string, HostEntry, error) {
+	var choices []displayChoice
+
+	var keys []string
+	for key := range hosts {
+		keys = append(keys, key)
 	}
-	sort.Strings(hostNames)
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		for _, entry := range hosts[key] {
+			display := fmt.Sprintf("%s (%s)", key, entry.Application)
+			choices = append(choices, displayChoice{HostName: key, Entry: entry, Display: display})
+		}
+	}
+
+	// Prepare the input for wofi.
+	var displayList []string
+	for _, choice := range choices {
+		displayList = append(displayList, choice.Display)
+	}
 
 	cmd := exec.Command("wofi", "--prompt", "Waypipe hosts:", "--dmenu", "--insensitive")
-	cmd.Stdin = strings.NewReader(strings.Join(hostNames, "\n"))
+	cmd.Stdin = strings.NewReader(strings.Join(displayList, "\n"))
 
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", HostEntry{}, err
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	selected := strings.TrimSpace(string(output))
+	for _, choice := range choices {
+		if choice.Display == selected {
+			return choice.HostName, choice.Entry, nil
+		}
+	}
+
+	return "", HostEntry{}, fmt.Errorf("no matching entry found for selection %q", selected)
 }
 
-// waypipeToHost executes the waypipe command using the provided arguments, host, and application.
-// It splits any extra arguments into separate tokens and appends fixed tokens ("ssh", host, application).
-func waypipeToHost(argsStr, host, application string) error {
-	// Start with any extra arguments (split into fields).
+func callWaypipe(argsStr, host, application string) error {
 	args := []string{}
 	if argsStr != "" {
 		args = append(args, strings.Fields(argsStr)...)
 	}
-	// Append the fixed command arguments.
 	args = append(args, "ssh", host, application)
 
 	cmd := exec.Command("waypipe", args...)
-	// Pipe the standard streams so that the command output is visible.
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
