@@ -1,171 +1,140 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/godbus/dbus/v5"
 )
 
-// DeviceInfo holds network information about a device, including name, IP address,
-// network name, Wi-Fi SSID, signal strength, and device type.
-type DeviceInfo struct {
-	DeviceName     string // Name of the network device (e.g., "wlan0").
-	IpAddress      string // IPv4 address of the device.
-	NetworkName    string // Network name the device is connected to.
-	WifiSSID       string // SSID of the Wi-Fi network.
-	SignalStrength int    // Signal strength of the network connection.
-	DeviceType     int    // Device type; typically Wi-Fi.
-	WifiStrength   int    // Wi-Fi signal strength (if applicable).
-}
-
-// NM_DEVICE_TYPE_WIFI is a constant representing Wi-Fi device type.
+// NM_DEVICE_TYPE_WIFI | Wi-Fi device type.
 const NM_DEVICE_TYPE_WIFI = 2
 
-// GetNetworkInfo retrieves network information for all devices connected to the system.
-// It connects to the system's D-Bus to query the NetworkManager service for device data.
-// Returns a slice of DeviceInfo objects containing data for each detected device.
-func GetNetworkInfo() []DeviceInfo {
-	conn, _ := dbus.ConnectSystemBus()
+type NetworkInfo struct {
+	DeviceName   string
+	Interface    string
+	IpAddress    string
+	WifiSSID     string
+	DeviceType   uint32
+	WifiStrength uint8
+}
+
+func GetNetworkInfo() []NetworkInfo {
+	conn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 	defer conn.Close()
 
-	var deviceInfos []DeviceInfo
-
+	var networkInfos []NetworkInfo
 	var devicePaths []dbus.ObjectPath
 
-	conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager").
-		Call("org.freedesktop.NetworkManager.GetAllDevices", 0).
-		Store(&devicePaths)
+	// Enumerate devices
+	err = conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager").
+		Call("org.freedesktop.NetworkManager.GetAllDevices", 0).Store(&devicePaths)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 
-	for _, devicePath := range devicePaths {
-		var deviceInfo DeviceInfo
-
-		// Get device name
-		conn.Object("org.freedesktop.NetworkManager", devicePath).
-			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device", "Interface").
-			Store(&deviceInfo.DeviceName)
-
-		// Get device type
-		conn.Object("org.freedesktop.NetworkManager", devicePath).
-			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device", "DeviceType").
-			Store(&deviceInfo.DeviceType)
-
-		// Get IP4 configuration path
-		var ip4ConfigPath dbus.ObjectPath
-
-		conn.Object("org.freedesktop.NetworkManager", devicePath).
-			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device", "Ip4Config").
-			Store(&ip4ConfigPath)
+	// Iterate over each device and get its properties
+	for _, path := range devicePaths {
+		var interfaceName string
+		var deviceType uint32
+		var ipAddress string
+		var wifiSSID string
+		var wifiStrength uint8
 
 		var addressData []map[string]dbus.Variant
+		var ip4ConfigPath dbus.ObjectPath
+		var activeApPath dbus.ObjectPath
 
-		conn.Object("org.freedesktop.NetworkManager", ip4ConfigPath).
-			Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.IP4Config", "AddressData").
-			Store(&addressData)
+		obj := conn.Object("org.freedesktop.NetworkManager", path)
+
+		// Get device properties
+		interfaceNameVariant, err := obj.GetProperty("org.freedesktop.NetworkManager.Device.Interface")
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		interfaceName = interfaceNameVariant.Value().(string)
+
+		deviceTypeVariant, err := obj.GetProperty("org.freedesktop.NetworkManager.Device.DeviceType")
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		deviceType = deviceTypeVariant.Value().(uint32)
+
+		ip4ConfigPathVariant, err := obj.GetProperty("org.freedesktop.NetworkManager.Device.Ip4Config")
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		ip4ConfigPath = ip4ConfigPathVariant.Value().(dbus.ObjectPath)
+
+		addressDataVariant, err := conn.Object("org.freedesktop.NetworkManager", ip4ConfigPath).GetProperty("org.freedesktop.NetworkManager.IP4Config.AddressData")
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		addressData = addressDataVariant.Value().([]map[string]dbus.Variant)
 
 		if len(addressData) > 0 {
-			if ip, ok := addressData[0]["address"]; ok {
-				deviceInfo.IpAddress = ip.Value().(string)
-			}
+			ipAddress = addressData[0]["address"].Value().(string)
 		}
 
 		// If device type is Wi-Fi, get additional info
-		if deviceInfo.DeviceType == NM_DEVICE_TYPE_WIFI {
-			var activeApPath dbus.ObjectPath
+		if deviceType == NM_DEVICE_TYPE_WIFI {
 
-			conn.Object("org.freedesktop.NetworkManager", devicePath).
-				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.Device.Wireless", "ActiveAccessPoint").
-				Store(&activeApPath)
+			activeApPathVariant, err := obj.GetProperty("org.freedesktop.NetworkManager.Device.Wireless.ActiveAccessPoint")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			activeApPath = activeApPathVariant.Value().(dbus.ObjectPath)
 
-			// Get the SSID, which is stored as []byte
-			var ssid []byte
+			wifiSSIDVariant, err := conn.Object("org.freedesktop.NetworkManager", activeApPath).GetProperty("org.freedesktop.NetworkManager.AccessPoint.Ssid")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			wifiSSID = string(wifiSSIDVariant.Value().([]byte))
 
-			conn.Object("org.freedesktop.NetworkManager", activeApPath).
-				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.AccessPoint", "Ssid").
-				Store(&ssid)
-
-			// Convert SSID from []byte to string
-			deviceInfo.WifiSSID = string(ssid)
-
-			conn.Object("org.freedesktop.NetworkManager", activeApPath).
-				Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.NetworkManager.AccessPoint", "Strength").
-				Store(&deviceInfo.WifiStrength)
+			wifiStrengthVariant, err := conn.Object("org.freedesktop.NetworkManager", activeApPath).GetProperty("org.freedesktop.NetworkManager.AccessPoint.Strength")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			wifiStrength = wifiStrengthVariant.Value().(uint8)
 		}
 
-		deviceInfos = append(deviceInfos, deviceInfo)
+		// Append network info
+		networkInfos = append(networkInfos, NetworkInfo{
+			DeviceName:   string(path),
+			Interface:    interfaceName,
+			IpAddress:    ipAddress,
+			WifiSSID:     wifiSSID,
+			DeviceType:   deviceType,
+			WifiStrength: wifiStrength,
+		})
 	}
 
-	return deviceInfos
+	return networkInfos
 }
 
-// GetSSID handles HTTP requests to get the SSID of the connected Wi-Fi network.
-// Responds with the SSID string.
-func GetSSID(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "%s", GetSSIDHelper())
+func GetNetwork(w http.ResponseWriter, _ *http.Request) {
+	networkInfos := GetNetworkInfo()
+	json.NewEncoder(w).Encode(networkInfos)
 }
 
-// GetSSIDHelper iterates through network devices and returns the SSID of the first Wi-Fi device found.
-func GetSSIDHelper() string {
-	var ssid string
-
-	for _, device := range GetNetworkInfo() {
-		if device.WifiSSID != "" {
-			ssid = device.WifiSSID
-		}
-	}
-
-	return ssid
-}
-
-// GetWifiSignalStrength handles HTTP requests to retrieve the Wi-Fi signal strength.
-// Responds with the signal strength as an integer.
-func GetWifiSignalStrength(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%d", GetWifiSignalStrengthHelper(r))
-}
-
-// GetWifiSignalStrengthHelper retrieves the signal strength of the first Wi-Fi network device found.
-func GetWifiSignalStrengthHelper(r *http.Request) int {
-	var signalStrength int
-
-	for _, device := range GetNetworkInfo() {
-		if device.WifiStrength != 0 {
-			signalStrength = device.WifiStrength
-		}
-	}
-
-	return signalStrength
-}
-
-// GetIP handles HTTP requests to get the IP address of the first device.
-// Responds with the IP address as a string.
-func GetIP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", GetIPHelper(r)[0])
-}
-
-// GetIPHelper retrieves the IP addresses of all network devices.
-func GetIPHelper(r *http.Request) []string {
-	var ipAddress []string
-
-	for _, device := range GetNetworkInfo() {
-		if device.IpAddress == "" || device.IpAddress == "127.0.0.1" {
-			continue
-		}
-
-		ipAddress = append(ipAddress, device.IpAddress)
-	}
-
-	return ipAddress
-}
-
-// ToggleWifi handles HTTP requests to toggle the Wi-Fi status (enabled/disabled).
-// Responds with a boolean indicating the new Wi-Fi status.
-func ToggleWifi(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%t", ToggleWifiHelper(r))
-}
-
-// ToggleWifiHelper toggles the Wi-Fi status (enabled/disabled) and returns the new status as a boolean.
 func ToggleWifiHelper(r *http.Request) bool {
-	conn, _ := dbus.ConnectSystemBus()
+	conn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		fmt.Println(err)
+	}
 	defer conn.Close()
 
 	var enabled bool
@@ -186,4 +155,8 @@ func ToggleWifiHelper(r *http.Request) bool {
 		Store()
 
 	return enable
+}
+
+func ToggleWifi(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "%t", ToggleWifiHelper(r))
 }

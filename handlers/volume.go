@@ -3,75 +3,90 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
-// Volume represents a volume control entity with a device name and a level.
-type Volume struct {
-	Device string
-	Level  float64
+type VolumeInfo struct {
+	Device string  `json:"device"`
+	Level  float64 `json:"level"`
+	Muted  bool    `json:"muted"`
 }
 
-// ParseVolumeJSON reads the HTTP request body and unmarshals it into a Volume struct.
-func ParseVolumeJSON(r *http.Request) *Volume {
-	var volume Volume
-
-	responseBody, _ := io.ReadAll(r.Body)
-	json.Unmarshal(responseBody, &volume)
-
-	return &volume
+type VolumeAction struct {
+	Device string `json:"device"`
+	Muted  bool   `json:"muted"`
+	Adjust string `json:"adjust"`
 }
 
-// GetVolume writes the current volume level of the specified audio device to the response.
+func GetVolumeInfo() []VolumeInfo {
+	var volumeInfos []VolumeInfo
+
+	devices := []string{"@DEFAULT_SINK@", "@DEFAULT_SOURCE@"}
+
+	for _, device := range devices {
+		getVolumeCommand := exec.Command("wpctl", "get-volume", device)
+		volumeOutput, _ := getVolumeCommand.Output()
+		re := regexp.MustCompile(`Volume:\s([\d.]+)`)
+		volumeRegex := re.FindStringSubmatch(string(volumeOutput))
+		volumeLevel, _ := strconv.ParseFloat(volumeRegex[1], 2)
+		muted := strings.Contains(string(volumeOutput), "[MUTED]")
+
+		volumeInfos = append(volumeInfos, VolumeInfo{
+			Device: device,
+			Level:  volumeLevel,
+			Muted:  muted,
+		})
+	}
+
+	return volumeInfos
+}
+
+func SetVolumeHelper(volumeActions []VolumeAction) {
+	for entry := range volumeActions {
+		if volumeActions[entry].Device == "" {
+			volumeActions[entry].Device = "@DEFAULT_SINK@"
+		}
+
+		volumeFloat, err := strconv.ParseFloat(volumeActions[entry].Adjust, 2)
+		if err != nil {
+			fmt.Printf("SetVolumeHelper: %s isnt a float\n", volumeActions[entry].Adjust)
+		} else {
+			if volumeFloat >= 1 {
+				volumeActions[entry].Adjust = "1"
+			} else if volumeFloat < 0 {
+				volumeActions[entry].Adjust = "0"
+			}
+		}
+
+		if volumeActions[entry].Muted == true {
+			toggleMuteCommand := exec.Command("wpctl", "set-mute", volumeActions[entry].Device, "1")
+			toggleMuteCommand.Run()
+		} else {
+			toggleMuteCommand := exec.Command("wpctl", "set-mute", volumeActions[entry].Device, "0")
+			toggleMuteCommand.Run()
+		}
+
+		setVolumeCommand := exec.Command("wpctl", "set-volume", volumeActions[entry].Device, volumeActions[entry].Adjust)
+		setVolumeCommand.Run()
+
+	}
+}
+
 func GetVolume(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%f", GetVolumeHelper(r))
+	volumeInfo := GetVolumeInfo()
+	json.NewEncoder(w).Encode(volumeInfo)
 }
 
-// GetVolumeHelper retrieves the current volume level for the specified audio device.
-func GetVolumeHelper(r *http.Request) float64 {
-	volume := ParseVolumeJSON(r)
-	if volume.Device == "" {
-		volume.Device = "@DEFAULT_SINK@"
-	}
-
-	getVolumeCommand := exec.Command("wpctl", "get-volume", volume.Device)
-	volumeOutput, _ := getVolumeCommand.Output()
-	re := regexp.MustCompile(`Volume:\s([\d.]+)`)
-	volumeRegex := re.FindStringSubmatch(string(volumeOutput))
-	volumeLevel, _ := strconv.ParseFloat(volumeRegex[1], 64)
-
-	return volumeLevel
-}
-
-// SetVolume writes the new volume level to the specified audio device and returns the new level.
 func SetVolume(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%f", SetVolumeHelper(r))
-}
-
-// SetVolumeHelper sets the volume level for the specified audio device and returns the updated level.
-func SetVolumeHelper(r *http.Request) float64 {
-	volume := ParseVolumeJSON(r)
-	if volume.Device == "" {
-		volume.Device = "@DEFAULT_SINK@"
+	var volumeActions []VolumeAction
+	err := json.NewDecoder(r.Body).Decode(&volumeActions)
+	if err != nil {
+		return
 	}
 
-	setVolumeCommand := exec.Command("wpctl", "set-volume", volume.Device, fmt.Sprintf("%f", volume.Level))
-	setVolumeCommand.Run()
-
-	return GetVolumeHelper(r)
-}
-
-// ToggleVolumeMute toggles the mute state of the specified audio device.
-func ToggleVolumeMute(_ http.ResponseWriter, r *http.Request) {
-	volume := ParseVolumeJSON(r)
-	if volume.Device == "" {
-		volume.Device = "@DEFAULT_SINK@"
-	}
-
-	toggleVolumeMuteCommand := exec.Command("wpctl", "set-mute", volume.Device, "toggle")
-	toggleVolumeMuteCommand.Run()
+	SetVolumeHelper(volumeActions)
 }
