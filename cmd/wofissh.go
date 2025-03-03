@@ -19,8 +19,7 @@ var (
 
 func init() {
 	rootCmd.AddCommand(wofisshCmd)
-	wofisshCmd.Flags().StringVarP(&terminal, "terminal", "t", "", "Terminal command to use")
-	wofisshCmd.Flags().StringVarP(&sshCommand, "ssh-command", "s", "ssh", "SSH command to use")
+	wofisshCmd.Flags().StringVarP(&terminal, "terminal", "t", "", "Terminal command to use (example: kitty +kitten ssh)")
 }
 
 var wofisshCmd = &cobra.Command{
@@ -41,7 +40,7 @@ var wofisshCmd = &cobra.Command{
 			log.Fatalf("Error displaying wofi: %v", err)
 		}
 
-		err = sshToHost(selectedHost, terminal, sshCommand)
+		err = sshToHost(selectedHost, terminal)
 		if err != nil {
 			log.Fatalf("Error executing SSH command: %v", err)
 		}
@@ -89,8 +88,8 @@ func showWofi(hosts []string) (string, error) {
 }
 
 // Function to execute the SSH command in the specified terminal.
-func sshToHost(host string, terminal string, sshCommand string) error {
-	err := exec.Command("sh", "-c", fmt.Sprintf("%s '%s %s'", terminal, sshCommand, host)).Run()
+func sshToHost(host string, terminal string) error {
+	err := exec.Command("sh", "-c", fmt.Sprintf("%s '%s'", terminal, host)).Run()
 
 	return err
 }
