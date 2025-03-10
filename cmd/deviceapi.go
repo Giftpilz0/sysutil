@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/giftpilz0/sysutil/handlers"
-	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 )
 
@@ -19,16 +18,16 @@ var deviceapiCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		router := mux.NewRouter()
+		// Register HTTP handlers.
+		http.HandleFunc("/network", handlers.NetworkHandler)
+		http.HandleFunc("/battery", handlers.BatteryHandler)
+		http.HandleFunc("/audio/outputs", handlers.AudioOutputsHandler)
+		http.HandleFunc("/audio/inputs", handlers.AudioInputsHandler)
+		http.HandleFunc("/audio/actions", handlers.AudioActionsHandler)
 
-		router.HandleFunc("/volume", handlers.GetVolume).Methods("GET")
-		router.HandleFunc("/volume", handlers.SetVolume).Methods("POST")
-
-		router.HandleFunc("/network", handlers.GetNetwork).Methods("GET")
-		router.HandleFunc("/network/toggle/wifi", handlers.ToggleWifi).Methods("GET")
-
-		router.HandleFunc("/battery", handlers.GetBattery).Methods("GET")
-
-		log.Fatal(http.ListenAndServe(":8080", router))
+		log.Println("HTTP server listening on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Fatalf("Failed to start server: %v", err)
+		}
 	},
 }

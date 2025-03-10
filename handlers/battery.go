@@ -1,92 +1,118 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"github.com/godbus/dbus/v5"
 )
 
-type BatteryInfo struct {
-	DeviceName     string
-	Temperature    float64
-	Percentage     float64
-	IsRechargeable bool
-	IsPresent      bool
+const (
+	upowerService         = "org.freedesktop.UPower"
+	upowerPath            = "/org/freedesktop/UPower"
+	upowerDeviceInterface = "org.freedesktop.UPower.Device"
+
+	// UPower device type for battery.
+	batteryDeviceType int32 = 2
+)
+
+// Battery holds battery status information.
+type Battery struct {
+	Percentage float64 `json:"percentage"`
+	State      string  `json:"state"`
 }
 
-func GetBatteryInfo() []BatteryInfo {
-	conn, err := dbus.ConnectSystemBus()
-	if err != nil {
-		fmt.Println(err)
-		return nil
+// BatteryStateToString converts a battery state (integer) into a human‑readable string.
+func BatteryStateToString(state int32) string {
+	switch state {
+	case 0:
+		return "Unknown"
+	case 1:
+		return "Charging"
+	case 2:
+		return "Discharging"
+	case 3:
+		return "Empty"
+	case 4:
+		return "Fully charged"
+	case 5:
+		return "Pending"
+	case 6:
+		return "Not charging"
+	default:
+		return "Unknown"
 	}
-	defer conn.Close()
+}
 
-	var batteryInfos []BatteryInfo
+// GetBatteryStatus retrieves battery information using UPower via DBus.
+func GetBatteryStatus() (Battery, error) {
+	var battery Battery
+
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return battery, fmt.Errorf("failed to connect to system DBus for battery: %w", err)
+	}
+
+	upowerObj := conn.Object(upowerService, dbus.ObjectPath(upowerPath))
+
+	// Enumerate UPower devices.
 	var devicePaths []dbus.ObjectPath
-
-	// Enumerate devices
-	err = conn.Object("org.freedesktop.UPower", "/org/freedesktop/UPower").
-		Call("org.freedesktop.UPower.EnumerateDevices", 0).Store(&devicePaths)
-	if err != nil {
-		fmt.Println(err)
-		return nil
+	if err = upowerObj.Call("org.freedesktop.UPower.EnumerateDevices", 0).Store(&devicePaths); err != nil {
+		return battery, fmt.Errorf("failed to enumerate UPower devices: %w", err)
 	}
 
-	// Iterate over each device and get its properties
 	for _, path := range devicePaths {
-		var temperature float64
-		var percentage float64
-		var isRechargeable bool
-		var isPresent bool
+		devObj := conn.Object(upowerService, path)
 
-		obj := conn.Object("org.freedesktop.UPower", path)
-
-		// Get device properties
-		temperatureVariant, err := obj.GetProperty("org.freedesktop.UPower.Device.Temperature")
+		// Retrieve the device type.
+		typeVar, err := GetProperty(devObj, upowerDeviceInterface, "Type")
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
-		temperature = temperatureVariant.Value().(float64)
 
-		percentageVariant, err := obj.GetProperty("org.freedesktop.UPower.Device.Percentage")
-		if err != nil {
-			fmt.Println(err)
+		var devType int32
+		switch t := typeVar.Value().(type) {
+		case int32:
+			devType = t
+		case uint32:
+			devType = int32(t)
+		default:
 			continue
 		}
-		percentage = percentageVariant.Value().(float64)
 
-		isRechargeableVariant, err := obj.GetProperty("org.freedesktop.UPower.Device.IsRechargeable")
-		if err != nil {
-			fmt.Println(err)
+		// Check if the device is a battery.
+		if devType != batteryDeviceType {
 			continue
 		}
-		isRechargeable = isRechargeableVariant.Value().(bool)
 
-		isPresentVariant, err := obj.GetProperty("org.freedesktop.UPower.Device.IsPresent")
+		// Retrieve battery percentage.
+		percVar, err := GetProperty(devObj, upowerDeviceInterface, "Percentage")
 		if err != nil {
-			fmt.Println(err)
+			return battery, fmt.Errorf("failed to get battery percentage: %w", err)
+		}
+		percentage, ok := percVar.Value().(float64)
+		if !ok {
 			continue
 		}
-		isPresent = isPresentVariant.Value().(bool)
 
-		// Append battery info
-		batteryInfos = append(batteryInfos, BatteryInfo{
-			DeviceName:     string(path),
-			Temperature:    temperature,
-			Percentage:     percentage,
-			IsRechargeable: isRechargeable,
-			IsPresent:      isPresent,
-		})
+		// Retrieve battery state.
+		stateVar, err := GetProperty(devObj, upowerDeviceInterface, "State")
+		if err != nil {
+			return battery, fmt.Errorf("failed to get battery state: %w", err)
+		}
+		var stateInt int32
+		switch s := stateVar.Value().(type) {
+		case int32:
+			stateInt = s
+		case uint32:
+			stateInt = int32(s)
+		default:
+			stateInt = 0
+		}
+
+		battery.Percentage = percentage
+		battery.State = BatteryStateToString(stateInt)
+		return battery, nil
 	}
 
-	return batteryInfos
-}
-
-func GetBattery(w http.ResponseWriter, _ *http.Request) {
-	batteryInfos := GetBatteryInfo()
-	json.NewEncoder(w).Encode(batteryInfos)
+	return battery, nil
 }

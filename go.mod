@@ -5,7 +5,6 @@ go 1.23.6
 require (
 	github.com/gdamore/tcell/v2 v2.8.1
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/gorilla/mux v1.8.1
 	github.com/rivo/tview v0.0.0-20241227133733-17b7edb88c57
 	github.com/spf13/cobra v1.9.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -18,7 +17,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 )
