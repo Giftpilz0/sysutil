@@ -15,10 +15,12 @@ const (
 // AudioInfo represents aggregated information for an audio device,
 // whether it’s an output (sink) or an input (source) device.
 type AudioInfo struct {
-	Name    string `json:"name"`
-	Volume  int    `json:"volume"` // e.g. "100%"
-	Mute    bool   `json:"mute"`
-	Default bool   `json:"default,omitempty"`
+	Name        string `json:"name"`
+	Volume      int    `json:"volume"` // e.g. "100%"
+	Mute        bool   `json:"mute"`
+	Default     bool   `json:"default,omitempty"`
+	Description string `json:"description"`
+	Nickname    string `json:"nickname"`
 }
 
 // RawVolumeChannel represents an individual channel's volume details from pactl.
@@ -28,11 +30,18 @@ type RawVolumeChannel struct {
 	ValuePercent string `json:"value_percent"`
 }
 
+// RawVolumeChannel represents an individual channel's volume details from pactl.
+type RawDeviceProperties struct {
+	Nickname string `json:"device.nick"`
+}
+
 // rawDevice is a common structure for unmarshaling JSON output for both sinks and sources.
 type rawDevice struct {
-	Name   string                      `json:"name"`
-	Volume map[string]RawVolumeChannel `json:"volume"`
-	Mute   bool                        `json:"mute"`
+	Name        string                      `json:"name"`
+	Volume      map[string]RawVolumeChannel `json:"volume"`
+	Properties  RawDeviceProperties         `json:"properties"`
+	Mute        bool                        `json:"mute"`
+	Description string                      `json:"description"`
 }
 
 // VolumeAction defines an action for adjusting volume and mute settings,
@@ -80,9 +89,11 @@ func getAudioInfo(deviceType string) ([]AudioInfo, error) {
 	audioInfos := make([]AudioInfo, 0, len(devices))
 	for _, dev := range devices {
 		audioInfos = append(audioInfos, AudioInfo{
-			Name:   dev.Name,
-			Volume: aggregateVolume(dev.Volume),
-			Mute:   dev.Mute,
+			Name:        dev.Name,
+			Volume:      aggregateVolume(dev.Volume),
+			Mute:        dev.Mute,
+			Description: dev.Description,
+			Nickname:    dev.Properties.Nickname,
 		})
 	}
 
