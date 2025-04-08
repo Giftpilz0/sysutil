@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -47,23 +48,51 @@ var wofisshCmd = &cobra.Command{
 	},
 }
 
-// Function to get a list of all hosts from the ssh config.
 func getHosts(sshConfigFile string) ([]string, error) {
 	var hosts []string
 
 	sshFile, err := os.Open(sshConfigFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open SSH config file: %w", err)
+		return nil, fmt.Errorf("could not open SSH config file %s: %w", sshConfigFile, err)
 	}
 	defer sshFile.Close()
 
 	scanner := bufio.NewScanner(sshFile)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
+
+		if strings.HasPrefix(line, "Include ") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+
+			for _, incrementalPath := range fields[1:] {
+				if !filepath.IsAbs(incrementalPath) {
+					incrementalPath = filepath.Join(filepath.Dir(sshConfigFile), incrementalPath)
+				}
+
+				matches, err := filepath.Glob(incrementalPath)
+				if err != nil {
+					log.Printf("Warning: failed to expand glob %q: %v", incrementalPath, err)
+					continue
+				}
+
+				for _, match := range matches {
+					subHosts, err := getHosts(match)
+					if err != nil {
+						log.Printf("Warning: failed to parse included file %q: %v", match, err)
+						continue
+					}
+					hosts = append(hosts, subHosts...)
+				}
+			}
+			continue
+		}
 
 		if strings.HasPrefix(line, "Host ") {
-			parts := strings.Fields(line)
-			hosts = append(hosts, parts[1:]...)
+			fields := strings.Fields(line)
+			hosts = append(hosts, fields[1:]...)
 		}
 	}
 
@@ -88,8 +117,6 @@ func showWofi(hosts []string) (string, error) {
 }
 
 // Function to execute the SSH command in the specified terminal.
-func sshToHost(host string, terminal string) error {
-	err := exec.Command("sh", "-c", fmt.Sprintf("%s '%s'", terminal, host)).Run()
-
-	return err
+func sshToHost(host, terminal string) error {
+	return exec.Command("sh", "-c", fmt.Sprintf("%s '%s'", terminal, host)).Run()
 }

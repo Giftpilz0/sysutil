@@ -17,3 +17,7 @@ POST /audio/actions → Accepts JSON input for ProcessAudioActions and returns a
 ```
 curl -X POST -d '[{"device":"alsa_output.usb-Plantronics_Plantronics_Blackwire_5220_Series_02FCAAAB685740D3A43CCE7C8DF13E03-00.analog-stereo","adjust":50,"muted":false,"default":true,"type":"sink"}]' 127.0.0.1:8090/audio/actions
 ```
+
+## Wofissh Usage
+
+`wofissh --terminal "kitty env TERM=xterm-256color ssh"`
