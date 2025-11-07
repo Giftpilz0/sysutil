@@ -1,0 +1,29 @@
+---
+version: 2
+
+project_name: sysutil
+
+# Build configuration
+builds:
+  - main: .
+    binary: sysutil
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+
+# Archives
+archives:
+  - formats: tar.gz
+
+# Changelog
+changelog:
+  sort: asc
+
+# Checksum
+checksum:
+  name_template: "checksums.txt"
