@@ -4,7 +4,7 @@ go 1.24.9
 
 require (
 	github.com/gdamore/tcell/v2 v2.9.0
-	github.com/godbus/dbus/v5 v5.1.0
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/rivo/tview v0.42.0
 	github.com/spf13/cobra v1.10.1
 	gopkg.in/yaml.v3 v3.0.1
